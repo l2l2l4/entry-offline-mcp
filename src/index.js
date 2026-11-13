@@ -136,9 +136,17 @@ async function waitReady(timeoutMs = 40000) {
 async function stageScreenshot(target = 'stage') {
   let clip = null;
   if (target === 'stage') {
+    // preferred: force-render + read the stage canvas (always the current frame, even if the window is hidden)
+    try {
+      const png = await bridge('captureStage');
+      if (png) return { type: 'image', data: png, mimeType: 'image/png' };
+    } catch (e) {}
     const r = await bridge('stageRect');
     if (r && r.width > 0) clip = { x: r.x, y: r.y, width: r.width, height: r.height, scale: Math.max(1, 480 / r.width) };
   }
+  try {
+    await bridge('forceRender');
+  } catch (e) {}
   const data = await cdp.screenshot(clip);
   return { type: 'image', data, mimeType: 'image/png' };
 }

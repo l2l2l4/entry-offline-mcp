@@ -3,7 +3,7 @@
 // It defines window.__entryMcp, a helper layer on top of the Entry (entryjs) runtime.
 // It must be plain browser JS (no require / import).
 (function () {
-  const VERSION = 19;
+  const VERSION = 20;
   if (window.__entryMcp && window.__entryMcp.VERSION === VERSION) return;
 
   const M = { VERSION };
@@ -1451,6 +1451,32 @@
   M.stop = async function () {
     await M.ensureStopped();
     return { engine: Entry.engine.state };
+  };
+
+  // Force-render the stage and read the canvas pixels directly.
+  // Entry only redraws on requestAnimationFrame, which pauses while the window is hidden/occluded,
+  // so a compositor screenshot can show an old frame even though the program keeps running.
+  M.forceRender = function () {
+    try {
+      if (Entry.stage && Entry.stage.updateForce) Entry.stage.updateForce();
+      else if (Entry.stage && Entry.stage.update) {
+        Entry.requestUpdate = true;
+        Entry.stage.update();
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  M.captureStage = function () {
+    const c = document.getElementById('entryCanvas') || document.querySelector('canvas#entryCanvas, .entryCanvasWorkspace canvas');
+    if (!c) return null;
+    M.forceRender();
+    try {
+      return c.toDataURL('image/png').split(',')[1];
+    } catch (e) {
+      return null; // e.g. tainted canvas → caller falls back to a compositor screenshot
+    }
   };
 
   M.stageRect = function () {
