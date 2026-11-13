@@ -93,8 +93,22 @@ async function ensureConnected() {
   await cdp.connect();
 }
 
+// helpers that must work even while Entry is still loading / showing a dialog
+const NO_READY_WAIT = new Set(['isReady', 'findModal', 'dismissAlert', 'clickModal', 'stageRect', 'forceRender', 'captureStage']);
+
 async function bridge(fn, ...args) {
   await ensureConnected();
+  if (!NO_READY_WAIT.has(fn)) {
+    // Entry may still be booting right after entry_launch: wait a little instead of failing with an internal error
+    const t0 = Date.now();
+    while (!(await cdp.call('isReady').catch(() => false))) {
+      if (Date.now() - t0 > 15000) {
+        const modal = await cdp.call('findModal').catch(() => null);
+        throw new Error('엔트리가 아직 준비되지 않았습니다' + (modal ? ` (대화상자: ${JSON.stringify(modal).slice(0, 200)})` : '') + '. entry_status로 상태를 확인하세요.');
+      }
+      await sleep(500);
+    }
+  }
   return cdp.call(fn, ...args);
 }
 
@@ -111,6 +125,7 @@ function tool(server, name, description, schema, handler) {
 async function waitReady(timeoutMs = 40000) {
   const t0 = Date.now();
   let lastErr;
+  let modalSince = 0;
   while (Date.now() - t0 < timeoutMs) {
     try {
       if (!cdp.connected) {
@@ -123,7 +138,12 @@ async function waitReady(timeoutMs = 40000) {
       const st = await cdp.call('isReady').catch(() => false);
       if (st) return { ready: true };
       const modal = await cdp.call('findModal').catch(() => null);
-      if (modal) return { ready: false, modal };
+      // a dialog that stays for a few seconds needs the user's decision (e.g. project recovery);
+      // short-lived ones (loading popups) are just waited out
+      if (modal) {
+        if (!modalSince) modalSince = Date.now();
+        if (Date.now() - modalSince > 3000) return { ready: false, modal };
+      } else modalSince = 0;
     } catch (e) {
       lastErr = e;
       cdp.close();
