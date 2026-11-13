@@ -21,7 +21,7 @@
 3. 에셋: `entry_search_assets` → (`entry_preview_assets`로 눈으로 확인) → `entry_add_object`
    - 배경은 `kind:"background"`로 검색해서 추가 (자동으로 맨 뒤 + 잠금)
    - 글상자(`source:"textbox"`)로 제목/점수/안내문 UI 구성
-4. 데이터: `entry_data`로 변수(초기값, 무대 표시 여부/위치), 리스트(items), 신호
+4. 데이터: `entry_data`로 변수(초기값, 무대 표시 여부/위치), 리스트(items), 신호. 이미 있는 리스트 내용 전체 교체는 `{kind:"list", action:"set", name, items:[...]}` (수천 칸도 가능).
 5. 코드: `entry_set_script` (python 또는 blocks). **결과의 warnings / created를 반드시 확인.**
 6. 검증: `entry_run` (스크린샷+상태) → `entry_input`(키/클릭/대답 입력) → `entry_runtime_state` → 문제 수정 반복
 7. `entry_project {action:"save"}` → 저장. 최종 화면은 `entry_screenshot {save_as}`로 남길 수 있음.
@@ -104,6 +104,8 @@ def when_make_clone():                # 복제본 생성 시
 - 코드에서 대입(`이름 = 값`)하는 변수는 MCP가 미리 **숨김 전역 변수**로 만들어 둔다(함수 안에서 먼저 읽어도 OK). 무대에 보이게 하려면 `entry_data {action:"set", visible:true}`.
 - 다른 오브젝트가 대입하는 변수를 읽기만 하는 스크립트는, 그 변수가 이미 있어야 한다 → 대입하는 오브젝트의 스크립트를 먼저 설정하거나 `entry_data`로 먼저 만든다. (없으면 엔트리가 변수를 문자열로 바꿔버리므로 MCP가 오류로 막음)
 - 재귀 함수(자기 자신 호출)·뒤에 정의된 함수 호출 OK (MCP가 함수를 먼저 만들어 둠). 블록으로 만든 함수(`entry_define_function`)도 파이썬에서 이름으로 호출할 수 있다(먼저 정의해 둘 것).
+- **오브젝트 전용 변수(복제본마다 따로 갖는 값)는 `self.이름`** 으로 쓴다. 먼저 `entry_data {kind:"variable", action:"add", name, scope:"오브젝트이름"}`로 만들고, 코드에서는 반드시 `self.이름`. 그냥 `이름`으로 쓰면 모든 복제본이 공유하는 전역 변수가 새로 생긴다.
+  예: 원본이 `self.번호 = k` 후 `Entry.make_clone_of("self")` → 복제본은 그 값을 복사해 가짐 → `def when_make_clone():` 안에서 `self.번호`로 자기 번호 사용. 자기 위치는 `Entry.value_of_object("self", "x")`.
 - 변환이 실패하면 아무것도 바뀌지 않고(새로 만든 변수/함수도 되돌림), 오류 메시지에 **사용자 코드 기준 줄 번호**와 해당 줄이 나온다.
 - 모르는 명령은 `entry_block_reference {query:"키워드"}`로 찾으면 python 문법이 함께 나온다. python 문법이 비어 있는 블록은 파이썬으로 쓸 수 없다.
 
@@ -151,6 +153,13 @@ def when_make_clone():                # 복제본 생성 시
 ## 6. 그리기 (붓 / 채우기)
 - 붓: `set_xy`로 이동 → `start_drawing()` → 이동하면 선이 그려짐 → `stop_drawing()`. 선 끝은 각진 모양이라 굵은 짧은 선 = 사각형.
 - 붓 색은 문자열 식 가능: `Entry.set_brush_color_to(색목록[i])` ("#RRGGBB"). 미리 만든 색 리스트에서 골라 쓰면 명암/그라데이션 표현이 쉽다.
+- **또렷한 픽셀/덧칠 잔상 방지**: 기본 엔트리 화면에서 무대 1 = 화면 4/3 픽셀이다. 칸 크기·위치를 **0.75의 배수**(예: 4.5, 7.5)로 맞추면 경계가 화면 픽셀에 딱 맞아 번짐이 없고, 같은 칸을 배경색으로 덧칠해 지울 때 테두리 잔상이 남지 않는다. (덧칠이 수천 번 쌓이면 가끔 `clear_drawing()` 후 다시 그려 정리)
+- 배경·기계 테두리 같은 그래픽은 직접 그린 큰 PNG(예: 960×540)를 `props:{scale:0.5}`로 넣으면 선명하다. 화면 위 반사·주사선 같은 효과는 투명 PNG를 그림 오브젝트보다 앞 레이어에 둔다.
+
+### 소리
+- 직접 만든 소리 파일(mp3 권장)을 `sounds\`에 두고 `entry_object_assets {object, action:"add_sound", files:["삐.mp3"]}`로 추가 → 소리 이름은 파일 이름(확장자 제외).
+- 재생: `Entry.play_sound("이름")`, 길이 지정 `Entry.play_sound_for_sec("이름", 초)`(기다리지 않음), `Entry.play_sound_and_wait("이름")`.
+- 효과음은 짧은 파형을 코드로 만들어 mp3로 바꾸면 된다(예: 사각파 = 옛 게임기 삐 소리).
 - `clear_drawing()`은 **그 오브젝트가 그린 것만** 지운다. 갱신 주기가 다른 그림(예: 배경 격자 / 매 프레임 바뀌는 그림)은 오브젝트를 나눠서 그린다. 숨긴 오브젝트도 붓은 그려진다.
 - 매 프레임 다시 그릴 때는 `clear_drawing()` 후 **같은 프레임 안에서**(반복문 대신 재귀 함수로, §7) 모두 그리면 깜빡임이 없다.
 - **다각형 채우기**: `set_fill_color` / `start_fill` / `stop_fill` 블록은 파이썬 문법이 없다. 꼭짓점 좌표를 리스트/변수에 넣어 두고, 채우기 함수를 `entry_define_function`(블록)으로 만든 뒤 파이썬에서 호출한다:

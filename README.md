@@ -17,6 +17,8 @@
 
 ## 설치
 
+> 가장 쉬운 방법: Claude Code나 Codex에게 **"https://github.com/l2l2l4/entry-offline-mcp 이 MCP 설치해줘"** 라고 부탁하세요. 설치 후에는 새 대화(세션)를 열어야 엔트리 도구가 보입니다.
+
 ### Claude Code
 **명령 프롬프트(cmd)**
 ```bat
