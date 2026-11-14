@@ -97,6 +97,15 @@ Codex는 `config.toml`에 `command = 'node'`, `args = ['<받은 폴더>\src\inde
 
 예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y github:l2l2l4/entry-offline-mcp`
 
+## 생성형 AI 사용 표시 (워터마크)
+이 MCP로 만들거나 고친 작품에는 생성형 AI가 사용되었다는 표시가 자동으로 들어갑니다.
+1. **메모**: MCP가 코드를 넣은 오브젝트마다 코드 화면에 노란 메모 `[생성형 AI 사용 표시] … (날짜)`가 붙습니다. (엔트리파이썬 화면에서는 `#` 주석으로 보입니다)
+2. **숨김 변수**: 작품에 `AI_생성_표시` 변수(무대에 안 보임)가 생기고, 처음·최근 편집 날짜가 기록됩니다.
+3. **블록 ID 패턴**: MCP가 만든 블록은 눈에 보이지 않는 규칙(6글자, 문자 코드 합 % 31 = 7)의 ID를 갖습니다. 엔트리가 직접 만든 블록 ID는 4글자라 겹치지 않으며, 저장·불러오기·블록 이동 후에도 유지됩니다.
+
+`entry_status`의 `aiWatermark`에서 표시 여부(`marked`), 메모 수, 패턴 블록 수를 확인할 수 있습니다.
+엔트리파이썬 모드로 편집하면 엔트리가 블록을 새로 만들기 때문에 3번 패턴은 사라질 수 있지만, 1·2번은 남습니다.
+
 ## 동작 방식
 ```
 Claude ⇄ (MCP, stdio) ⇄ entry-offline-mcp ⇄ (Chrome DevTools Protocol) ⇄ 엔트리 오프라인(Electron)

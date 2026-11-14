@@ -3,7 +3,7 @@
 // It defines window.__entryMcp, a helper layer on top of the Entry (entryjs) runtime.
 // It must be plain browser JS (no require / import).
 (function () {
-  const VERSION = 20;
+  const VERSION = 24;
   if (window.__entryMcp && window.__entryMcp.VERSION === VERSION) return;
 
   const M = { VERSION };
@@ -524,7 +524,7 @@
   M.compactScript = function (obj) {
     const json = obj.script.toJSON ? obj.script.toJSON() : JSON.parse(obj.script.stringify ? obj.script.stringify() : '[]');
     const ctx = { object: obj };
-    return json.map((t) => t.map((b) => M.compactBlock(b, ctx)));
+    return json.filter((t) => !isCommentThread(t)).map((t) => t.map((b) => M.compactBlock(b, ctx)));
   };
 
   // ---------------------------------------------------------------- Python <-> blocks
@@ -629,7 +629,8 @@
     const p = new Entry.Parser(null);
     p.setParser(Entry.Vim.WORKSPACE_MODE, Entry.Vim.PARSER_TYPE_BLOCK_TO_PY);
     let code = obj.script;
-    if (threadsJson) code = new Entry.Code(threadsJson, obj);
+    if (threadsJson) code = new Entry.Code(threadsJson.filter((t) => !isCommentThread(t)), obj);
+    else if (obj.script.toJSON().some(isCommentThread)) code = new Entry.Code(obj.script.toJSON().filter((t) => !isCommentThread(t)), obj);
     return p.parse(code, Entry.Parser.PARSE_GENERAL);
   };
 
@@ -657,6 +658,72 @@
       (b.statements || []).forEach((s) => (s || []).forEach(fix));
     });
   }
+
+  // ---------------------------------------------------------------- generative-AI watermark
+  // Every project touched through this MCP is marked in three independent ways:
+  //  1) a visible memo (comment) in each object script written by the MCP,
+  //  2) a hidden global variable describing the AI involvement (first/last edit date),
+  //  3) an invisible pattern: every block the MCP creates gets a 6-char id whose char-code sum % 31 === 7
+  //     (Entry's own ids are 4 chars, so they never match; ids survive save/load and moving blocks).
+  const WM = { tag: '[생성형 AI 사용 표시]', varName: 'AI_생성_표시', mod: 31, rem: 7 };
+  const ID_CH = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const idSum = (id) => [...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const isMarkedId = (id) => typeof id === 'string' && id.length === 6 && idSum(id) % WM.mod === WM.rem;
+  function markedId() {
+    for (;;) {
+      let id = '';
+      for (let i = 0; i < 6; i++) id += ID_CH[Math.floor(Math.random() * ID_CH.length)];
+      if (isMarkedId(id)) return id;
+    }
+  }
+  // give every block (incl. nested value blocks) in thread JSON a watermark id
+  function markIds(x) {
+    if (Array.isArray(x)) return x.forEach(markIds);
+    if (!x || typeof x !== 'object') return;
+    if (typeof x.type === 'string' && x.type !== 'comment') x.id = markedId();
+    markIds(x.params);
+    markIds(x.statements);
+  }
+  const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const isMemoThread = (t) => !!(t && t[0] && t[0].type === 'comment' && String(t[0].value || '').includes(WM.tag));
+  const isCommentThread = (t) => !!(t && t[0] && t[0].type === 'comment');
+  M.ensureWatermarkVar = function () {
+    const V = vc();
+    let v = V.variables_.find((x) => x.name_ === WM.varName && !x.object_);
+    const first = v ? (String(v.getValue ? v.getValue() : v.value_).match(/처음 (\d{4}-\d{2}-\d{2})/) || [])[1] : null;
+    const text = `이 작품은 Entry MCP(entry-offline-mcp)를 통해 생성형 AI가 제작·편집에 참여했습니다 · 처음 ${first || today()} · 최근 ${today()}`;
+    if (!v) {
+      V.appendVariables([{ name: WM.varName, id: hash(), variableType: 'variable', value: text, visible: false, object: null }]);
+      try { V.updateList(); } catch (e) {}
+    } else if (v.setValue) v.setValue(text);
+    return text;
+  };
+  // single line on purpose: Entry turns a memo into one '# ...' line in Python mode (a newline would break the code)
+  function memoThread() {
+    return [{ type: 'comment', x: 470, y: 20, width: 330, height: 70, value: `${WM.tag} 이 오브젝트의 코드는 Entry MCP(entry-offline-mcp)를 통해 생성형 AI가 작성·수정했습니다 (${today()})` }];
+  }
+  M.watermarkInfo = function () {
+    const V = vc();
+    let memos = 0, blocks = 0, patternBlocks = 0;
+    const walk = (x) => {
+      if (Array.isArray(x)) return x.forEach(walk);
+      if (!x || typeof x !== 'object') return;
+      if (typeof x.type === 'string' && x.type !== 'comment' && x.id) { blocks++; if (isMarkedId(x.id)) patternBlocks++; }
+      walk(x.params);
+      walk(x.statements);
+    };
+    const codes = allObjects().map((o) => o.script);
+    Object.values(V.functions_).forEach((f) => f.content && codes.push(f.content));
+    codes.forEach((code) => {
+      let json = [];
+      try { json = code.toJSON(); } catch (e) {}
+      json.forEach((t) => { if (isMemoThread(t)) memos++; else walk(t); });
+    });
+    const ratio = blocks ? patternBlocks / blocks : 0;
+    const v = V.variables_.find((x) => x.name_ === WM.varName && !x.object_);
+    const patternDetected = patternBlocks > 0;
+    return { marked: !!(v || memos || patternDetected), variable: v ? (v.getValue ? v.getValue() : v.value_) : null, memos, patternBlocks, blocks, patternRatio: Math.round(ratio * 100) / 100, patternDetected };
+  };
 
   // ---------------------------------------------------------------- script set
   function layoutThreads(threads) {
@@ -736,9 +803,11 @@
       threads = M.normalizeThreads(blocks || [], ctx);
     }
     let existing = [];
-    if (mode === 'append') existing = obj.script.toJSON();
-    const all = existing.concat(layoutThreads(threads));
+    if (mode === 'append') existing = obj.script.toJSON().filter((t) => !isMemoThread(t));
+    markIds(threads);
+    const all = existing.concat(layoutThreads(threads), [memoThread()]);
     obj.script.load(all);
+    M.ensureWatermarkVar();
     // refresh board if this object is shown
     await M.refreshBoard(obj);
     const afterNames = dataNames();
@@ -748,7 +817,7 @@
     if (afterNames.size !== beforeVars) {
       vc().updateList();
     }
-    return { object: obj.name, threads: threads.length, blocks: ctx.count, totalThreads: obj.script.getThreads().length, warnings: ctx.warnings, created: ctx.created };
+    return { object: obj.name, threads: threads.length, blocks: ctx.count, totalThreads: obj.script.getThreads().length - 1, warnings: ctx.warnings, created: ctx.created };
   };
 
   M.refreshBoard = async function (obj) {
@@ -776,6 +845,7 @@
   // ---------------------------------------------------------------- functions
   M.defineFunction = async function ({ name, params, kind, body, python, returnValue, localVariables, replace }) {
     await M.ensureStopped();
+    M.ensureWatermarkVar();
     if (!name) fail('name이 필요합니다.');
     const existing = findFunction(name);
     if (existing) {
@@ -921,6 +991,7 @@
       lists: vc().lists_.map((v) => ({ name: v.name_, id: v.id_, scope: v.object_ ? 'local:' + ((M.findObject(v.object_, { optional: true }) || {}).name || v.object_) : 'global', items: (v.array_ || []).map((x) => x.data).slice(0, 50), length: (v.array_ || []).length, visible: v.isVisible ? v.isVisible() : v.visible_ })),
       messages: vc().messages_.map((m) => ({ name: m.name, id: m.id })),
       functions: Object.values(vc().functions_).map((f) => M.functionInfo(f, opts.scripts === 'blocks')),
+      aiWatermark: M.watermarkInfo(),
     };
     if (sel && Entry.playground.object !== sel) {
       try {
@@ -1530,6 +1601,7 @@
       Entry.stage.handle && Entry.stage.handle.setVisible(false);
       Entry.stage.update();
     } catch (e) {}
+    M.ensureWatermarkVar();
     const p = Entry.exportProject();
     p.name = ws._getProjectName();
     await window.ipcInvoke('saveProject', p, path);
