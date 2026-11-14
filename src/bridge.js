@@ -3,7 +3,7 @@
 // It defines window.__entryMcp, a helper layer on top of the Entry (entryjs) runtime.
 // It must be plain browser JS (no require / import).
 (function () {
-  const VERSION = 24;
+  const VERSION = 28;
   if (window.__entryMcp && window.__entryMcp.VERSION === VERSION) return;
 
   const M = { VERSION };
@@ -1638,6 +1638,81 @@
       return { ok: false, error: e.message, stack: String(e.stack || '').split('\n').slice(0, 4).join('\n') };
     }
   };
+
+  // ---------------------------------------------------------------- keep the id watermark through Python mode
+  // Switching Python → blocks makes Entry rebuild every block with fresh ids. We hook Workspace.textToCode,
+  // match the rebuilt blocks against the previous ones (type + literal values, LCS) and give a watermark id
+  // only to blocks that were watermarked before and are unchanged. Code typed by a person stays unmarked.
+  // signature = type + literal params; empty slots (null/undefined) differ between parser output and saved blocks, so skip them
+  const blockSig = (b) => b.type + '|' + (b.params || []).filter((p) => p !== null && p !== undefined && typeof p !== 'object').map((p) => String(p)).join(',');
+  function flattenBlocks(threads) {
+    const out = [];
+    (function walk(x) {
+      if (Array.isArray(x)) return x.forEach(walk);
+      if (!x || typeof x !== 'object') return;
+      if (typeof x.type === 'string' && x.type !== 'comment') out.push(x);
+      walk(x.params);
+      walk(x.statements);
+    })(threads);
+    return out;
+  }
+  M.remarkIds = function (oldThreads, newThreads) {
+    const a = flattenBlocks(oldThreads), b = flattenBlocks(newThreads);
+    if (!a.some((x) => isMarkedId(x.id))) return 0;
+    const sa = a.map(blockSig), sb = b.map(blockSig);
+    const pairs = [];
+    let i0 = 0;
+    while (i0 < sa.length && i0 < sb.length && sa[i0] === sb[i0]) { pairs.push([i0, i0]); i0++; }
+    let ea = sa.length, eb = sb.length;
+    while (ea > i0 && eb > i0 && sa[ea - 1] === sb[eb - 1]) { ea--; eb--; pairs.push([ea, eb]); }
+    const n = ea - i0, m = eb - i0;
+    if (n > 0 && m > 0 && n * m <= 4e6) {
+      // LCS on the changed middle part
+      const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+      for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i][j] = sa[i0 + i] === sb[i0 + j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      let i = 0, j = 0;
+      while (i < n && j < m) {
+        if (sa[i0 + i] === sb[i0 + j]) { pairs.push([i0 + i, i0 + j]); i++; j++; }
+        else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
+        else j++;
+      }
+    }
+    let n2 = 0;
+    pairs.forEach(([ia, ib]) => {
+      if (!isMarkedId(a[ia].id)) return;
+      const nb = b[ib], id = markedId();
+      // the parser returns a mix of plain JSON and Entry.Block model instances
+      if (typeof nb.set === 'function') nb.set({ id });
+      else nb.id = id;
+      n2++;
+    });
+    return n2;
+  };
+  try {
+    const WP = Entry.Workspace && Entry.Workspace.prototype;
+    if (WP && WP.textToCode && !WP.__mcpWatermarkHook) {
+      WP.__mcpWatermarkHook = true;
+      WP.textToCode = function (mode, oldTextType) {
+        if (!this.vimBoard || mode !== Entry.Workspace.MODE_VIMBOARD) return;
+        const board = this.board;
+        const code = board && board.code;
+        let before = [];
+        try { before = code ? code.toJSON() : []; } catch (e) {}
+        const changedCode = this.vimBoard.textToCode(oldTextType);
+        if (!code) return;
+        try { if (window.__entryMcp && window.__entryMcp.remarkIds) window.__entryMcp.remarkIds(before, changedCode); } catch (e) {}
+        code.load(changedCode);
+        this.changeBoardCode(code);
+        const self = this;
+        setTimeout(function () {
+          if (code.view) {
+            code.view.reDraw();
+            self.board.alignThreads();
+          }
+        }, 0);
+      };
+    }
+  } catch (e) {}
 
   window.__entryMcp = M;
 })();

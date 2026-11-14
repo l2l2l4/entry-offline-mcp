@@ -212,6 +212,7 @@ def when_make_clone():                # 복제본 생성 시
 - `entry_set_script`로 코드를 넣으면 그 오브젝트에 메모 `[생성형 AI 사용 표시] …`가 자동으로 붙고(오브젝트당 1개, 날짜만 갱신), 작품에 숨김 변수 `AI_생성_표시`가 생긴다. 블록 ID에도 보이지 않는 패턴이 들어간다.
 - 이 표시는 지우지 말 것. 사용자가 작품을 공유할 때 AI 사용 사실을 알리기 위한 것이다.
 - `entry_get_script`/`entry_get_project`의 코드 출력에는 메모가 포함되지 않는다. `entry_status`의 `aiWatermark`로 확인.
+- 파이썬 모드를 오가도 MCP가 바뀌지 않은 블록의 패턴을 복원한다(사람이 고친 블록은 표시하지 않음).
 
 ## 10. 기타 도구
 - `entry_get_project {scripts:"python"|"blocks"}`: 전체 구조 + 코드 / `entry_get_script`: 오브젝트 코드 읽기
