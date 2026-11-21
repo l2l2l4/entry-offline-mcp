@@ -1,0 +1,79 @@
+name: mac-e2e
+
+# Installs the real Entry offline app (official installer from playentry.org, NOT stored in this repo)
+# on a macOS runner and runs the MCP against it. The installer is ~940 MB, so this only runs
+# when started by hand (Actions tab -> mac-e2e -> Run workflow) or when this file changes.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/mac-e2e.yml'
+      - 'tests/e2e.js'
+      - 'src/launcher.js'
+
+env:
+  ENTRY_PKG_URL: https://playentry.org/uploads/data/installers/Entry-2.1.36.pkg
+  ENTRY_PKG_BYTES: '981736796'
+  ENTRY_PKG_SHA256: 63aedf208e1605817a380f208da572f0b823896159414cd2023400a21b8880b7
+
+jobs:
+  entry-app:
+    name: Entry app on macOS
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Machine info
+        run: |
+          uname -m
+          sw_vers
+          echo "rosetta: $(/usr/bin/pgrep oahd >/dev/null 2>&1 && echo running || echo not-running)"
+
+      - name: Cache the official installer
+        id: pkgcache
+        uses: actions/cache@v4
+        with:
+          path: Entry.pkg
+          key: entry-pkg-${{ env.ENTRY_PKG_SHA256 }}
+
+      - name: Download the official installer
+        if: steps.pkgcache.outputs.cache-hit != 'true'
+        run: curl -fL --retry 3 -o Entry.pkg "$ENTRY_PKG_URL"
+
+      - name: Verify the installer (size + sha256)
+        run: |
+          test "$(stat -f %z Entry.pkg)" = "$ENTRY_PKG_BYTES"
+          echo "$ENTRY_PKG_SHA256  Entry.pkg" | shasum -a 256 -c -
+
+      - name: Rosetta (the installer is x86_64 only)
+        if: runner.arch == 'ARM64'
+        run: |
+          sudo softwareupdate --install-rosetta --agree-to-license || true
+          arch -x86_64 /usr/bin/true && echo "x86_64 binaries run: yes"
+
+      - name: Install Entry.app
+        run: |
+          sudo installer -pkg Entry.pkg -target /
+          ls -la /Applications | grep -i entry
+          file /Applications/Entry.app/Contents/MacOS/Entry
+          ls -la /Applications/Entry.app/Contents/Resources/app.asar
+
+      - name: End-to-end test (real Entry app driven by the MCP)
+        run: node tests/e2e.js
+
+      - name: Diagnostics when something failed
+        if: failure()
+        run: |
+          emit() { echo "::error::$(printf '%s' "$1" | tr '\n' ' ' | cut -c1-1400)"; }
+          emit "processes: $(ps aux | grep -i '[E]ntry' | cut -c1-200 | head -8)"
+          emit "crash reports: $(ls -t ~/Library/Logs/DiagnosticReports 2>/dev/null | head -5)"
+          pkill -f Entry.app || true; sleep 2
+          (/Applications/Entry.app/Contents/MacOS/Entry --remote-debugging-port=9333 --remote-allow-origins='*' > entry-direct.log 2>&1 &) ; sleep 30
+          emit "entry stdout/stderr: $(tail -c 1200 entry-direct.log)"
+          emit "debug port: $(curl -s -m 5 http://127.0.0.1:9333/json | cut -c1-300)"
