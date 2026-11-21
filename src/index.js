@@ -283,6 +283,11 @@ tool(
       await sleep(1500);
       st = await waitReady();
     }
+    if (!st.ready) {
+      // still blocked (e.g. by a dialog): report it instead of reading the project of a half-loaded app
+      const modal = st.modal || (await cdp.call('findModal').catch(() => null));
+      return text({ connected: true, ready: false, modal, notes, message: '엔트리가 아직 준비되지 않았습니다.' + (modal ? ' 화면에 대화상자가 열려 있습니다.' : ' 잠시 후 entry_status로 다시 확인하세요.'), workspace: Object.assign({ createdNow: firstRun }, DIRS) });
+    }
     const summary = await cdp.call('summary', { brief: true });
     return text({ connected: true, ready: st.ready, notes, workspace: Object.assign({ createdNow: firstRun }, DIRS), project: summary });
   }
