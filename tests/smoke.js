@@ -68,6 +68,16 @@ const check = (name, fn) => Promise.resolve().then(fn).then(() => { results.push
       throw new Error(`${e.message} after ${Math.round((Date.now() - t0) / 1000)}s; server stderr: ${serverErr.slice(-800) || '(none)'}`);
     }
     console.log(`     connected in ${Math.round((Date.now() - t0) / 1000)}s`);
+    // diagnostics: if the server process dies right after the handshake, say why
+    const proc = transport._process;
+    if (proc) {
+      proc.on('exit', (code, sig) => {
+        const msg = `server process exited: code=${code} signal=${sig} after ${Math.round((Date.now() - t0) / 1000)}s total; stderr: ${serverErr.slice(-1000) || '(none)'}`;
+        console.log('     ' + msg);
+        annotate(msg);
+      });
+    }
+    await new Promise((r) => setTimeout(r, 1500)); // give a crash a moment to show up
   });
 
   if (client) {
