@@ -2,14 +2,14 @@ name: mac-e2e
 
 # Installs the real Entry offline app (official installer from playentry.org, NOT stored in this repo)
 # on a macOS runner and runs the MCP against it. The installer is ~940 MB, so this only runs
-# when started by hand (Actions tab -> mac-e2e -> Run workflow) or when this file changes.
+# when started by hand (Actions tab -> mac-e2e -> Run workflow) or when the MCP source or this test changes (the installer is cached).
 on:
   workflow_dispatch:
   push:
     paths:
       - '.github/workflows/mac-e2e.yml'
       - 'tests/e2e.js'
-      - 'src/launcher.js'
+      - 'src/**'
 
 env:
   ENTRY_PKG_URL: https://playentry.org/uploads/data/installers/Entry-2.1.36.pkg
