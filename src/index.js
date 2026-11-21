@@ -79,7 +79,12 @@ function safeName(n) {
 
 // ------------------------------------------------------------------ helpers
 const text = (obj) => ({ content: [{ type: 'text', text: typeof obj === 'string' ? obj : JSON.stringify(obj, null, 1) }] });
-const errorResult = (e) => ({ isError: true, content: [{ type: 'text', text: '오류: ' + (e && e.message ? e.message : String(e)) }] });
+// for unexpected errors raised inside Entry's page (not our own "fail()" messages) append where it happened
+const errorResult = (e) => {
+  let msg = e && e.message ? e.message : String(e);
+  if (e && e.bridgeStack && /Cannot read|is not a function|is not defined|undefined/.test(msg)) msg += ' @ ' + String(e.bridgeStack).split('\n').slice(1, 3).map((l) => l.trim()).join(' | ');
+  return { isError: true, content: [{ type: 'text', text: '오류: ' + msg }] };
+};
 
 async function ensureConnected() {
   if (cdp.connected) return;
