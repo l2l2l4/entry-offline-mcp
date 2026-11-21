@@ -14,7 +14,6 @@
 - macOS (**시험 지원**: 실제 맥에서는 아직 테스트하지 못했습니다. 동작 여부를 이슈로 알려 주세요)
 - 엔트리 오프라인 설치 (playentry.org → 다운로드) (테스트 버전: 2.1.36)
 - [Node.js](https://nodejs.org) **22 이상**
-- Git (npx가 GitHub에서 받을 때 사용)
 
 ## 설치
 
@@ -23,22 +22,25 @@
 ### Claude Code
 **macOS (터미널)**
 ```bash
-claude mcp add -s user entry -- npx -y github:l2l2l4/entry-offline-mcp
+claude mcp add -s user entry -- npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
 ```
 엔트리가 `/Applications/Entry.app`이 아닌 곳에 있으면 `-e ENTRY_PATH="/경로/Entry.app"`을 붙이세요.
 
 **Windows 명령 프롬프트(cmd)**
 ```bat
-claude mcp add -s user entry -- cmd /c npx -y github:l2l2l4/entry-offline-mcp
+claude mcp add -s user entry -- cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
 ```
 **Windows PowerShell** (`--`를 따옴표로 감싸야 합니다)
 ```powershell
-claude mcp add -s user entry '--' cmd /c npx -y github:l2l2l4/entry-offline-mcp
+claude mcp add -s user entry '--' cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
 ```
 > Git Bash에서는 `/c`가 경로로 바뀌어 버리므로 cmd 또는 PowerShell에서 실행하세요.
 > 첫 실행은 다운로드 때문에 시간이 걸릴 수 있습니다. `claude mcp list`에서 `Connected`가 보이면 완료.
 
 제거: `claude mcp remove entry -s user`
+
+> 설치 주소가 `github:l2l2l4/entry-offline-mcp`가 아니라 압축 파일(tarball) 주소인 이유: Node 22와 함께 오는 npm 10에서는 `npx github:…` 방식이 `GitFetcher requires an Arborist constructor` 오류로 실패합니다(CI에서 확인). 압축 주소 방식은 npm 버전과 상관없이 되고 Git도 필요 없습니다.
+> 업데이트가 반영되지 않으면 `npm config get cache`가 알려 주는 폴더 안의 `_npx` 폴더를 지우고 다시 실행하세요.
 
 ### Codex (앱 / CLI)
 `config.toml`(Windows: `%USERPROFILE%\.codex\config.toml`, macOS: `~/.codex/config.toml`) 맨 끝에 추가하고 Codex를 다시 시작하세요.
@@ -46,25 +48,25 @@ claude mcp add -s user entry '--' cmd /c npx -y github:l2l2l4/entry-offline-mcp
 # Windows
 [mcp_servers.entry]
 command = 'cmd'
-args = ['/c', 'npx', '-y', 'github:l2l2l4/entry-offline-mcp']
+args = ['/c', 'npx', '-y', 'https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main']
 startup_timeout_sec = 120
 ```
 ```toml
 # macOS
 [mcp_servers.entry]
 command = 'npx'
-args = ['-y', 'github:l2l2l4/entry-offline-mcp']
+args = ['-y', 'https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main']
 startup_timeout_sec = 120
 ```
 
 ### Claude Desktop 등 다른 MCP 클라이언트
-(macOS는 `"command": "npx"`, `"args": ["-y", "github:l2l2l4/entry-offline-mcp"]`)
+(macOS는 `"command": "npx"`, `"args": ["-y", "https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main"]`)
 ```json
 {
   "mcpServers": {
     "entry": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "github:l2l2l4/entry-offline-mcp"]
+      "args": ["/c", "npx", "-y", "https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main"]
     }
   }
 }
@@ -111,7 +113,7 @@ Codex는 `config.toml`에 `command = 'node'`, `args = ['<받은 폴더>\src\inde
 | `ENTRY_MCP_HOME` | `문서\EntryMCP` | 작업 폴더 |
 | `ENTRY_ASAR` | Windows: 엔트리 폴더의 `resources\app.asar`, macOS: `Entry.app/Contents/Resources/app.asar` | 내장 리소스 DB 위치 |
 
-예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y github:l2l2l4/entry-offline-mcp`
+예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main`
 
 ## 생성형 AI 사용 표시 (워터마크)
 이 MCP로 만들거나 고친 작품에는 생성형 AI가 사용되었다는 표시가 **눈에 띄지 않게** 자동으로 들어갑니다.
