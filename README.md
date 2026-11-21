@@ -7,10 +7,11 @@
 블록 JSON 작성, 변수·리스트·신호·함수, 장면, 실행·키 입력·스크린샷으로 테스트, `.ent` 저장/열기까지 지원합니다.
 작업은 **실제 엔트리 창에서 실시간으로** 보입니다.
 
-> An MCP server that lets AI agents (Claude, Codex, ...) build Entry (Korean block-coding platform) projects by driving the locally installed Entry offline app (Windows).
+> An MCP server that lets AI agents (Claude, Codex, ...) build Entry (Korean block-coding platform) projects by driving the locally installed Entry offline app (Windows; macOS experimental).
 
 ## 요구 사항
-- Windows 10/11
+- Windows 10/11 (실제 테스트 완료)
+- macOS (**시험 지원**: 실제 맥에서는 아직 테스트하지 못했습니다. 동작 여부를 이슈로 알려 주세요)
 - 엔트리 오프라인 설치 (playentry.org → 다운로드) (테스트 버전: 2.1.36)
 - [Node.js](https://nodejs.org) **22 이상**
 - Git (npx가 GitHub에서 받을 때 사용)
@@ -20,11 +21,17 @@
 > 가장 쉬운 방법: Claude Code나 Codex에게 **"https://github.com/l2l2l4/entry-offline-mcp 이 MCP 설치해줘"** 라고 부탁하세요. 설치 후에는 새 대화(세션)를 열어야 엔트리 도구가 보입니다.
 
 ### Claude Code
-**명령 프롬프트(cmd)**
+**macOS (터미널)**
+```bash
+claude mcp add -s user entry -- npx -y github:l2l2l4/entry-offline-mcp
+```
+엔트리가 `/Applications/Entry.app`이 아닌 곳에 있으면 `-e ENTRY_PATH="/경로/Entry.app"`을 붙이세요.
+
+**Windows 명령 프롬프트(cmd)**
 ```bat
 claude mcp add -s user entry -- cmd /c npx -y github:l2l2l4/entry-offline-mcp
 ```
-**PowerShell** (`--`를 따옴표로 감싸야 합니다)
+**Windows PowerShell** (`--`를 따옴표로 감싸야 합니다)
 ```powershell
 claude mcp add -s user entry '--' cmd /c npx -y github:l2l2l4/entry-offline-mcp
 ```
@@ -34,15 +41,24 @@ claude mcp add -s user entry '--' cmd /c npx -y github:l2l2l4/entry-offline-mcp
 제거: `claude mcp remove entry -s user`
 
 ### Codex (앱 / CLI)
-`%USERPROFILE%\.codex\config.toml` 맨 끝에 추가하고 Codex를 다시 시작하세요.
+`config.toml`(Windows: `%USERPROFILE%\.codex\config.toml`, macOS: `~/.codex/config.toml`) 맨 끝에 추가하고 Codex를 다시 시작하세요.
 ```toml
+# Windows
 [mcp_servers.entry]
 command = 'cmd'
 args = ['/c', 'npx', '-y', 'github:l2l2l4/entry-offline-mcp']
 startup_timeout_sec = 120
 ```
+```toml
+# macOS
+[mcp_servers.entry]
+command = 'npx'
+args = ['-y', 'github:l2l2l4/entry-offline-mcp']
+startup_timeout_sec = 120
+```
 
 ### Claude Desktop 등 다른 MCP 클라이언트
+(macOS는 `"command": "npx"`, `"args": ["-y", "github:l2l2l4/entry-offline-mcp"]`)
 ```json
 {
   "mcpServers": {
@@ -90,10 +106,10 @@ Codex는 `config.toml`에 `command = 'node'`, `args = ['<받은 폴더>\src\inde
 ## 환경변수 (선택)
 | 변수 | 기본값 | 설명 |
 |---|---|---|
-| `ENTRY_PATH` | `C:\entry\Entry.exe` 등 자동 탐색 | 엔트리 실행 파일 경로 |
+| `ENTRY_PATH` | 자동 탐색 (Windows `C:\entry\Entry.exe` 등, macOS `/Applications/Entry.app`, `~/Applications/Entry.app`) | 엔트리 실행 파일, 그 폴더, 또는 macOS `.app` 경로 |
 | `ENTRY_DEBUG_PORT` | `9333` | 원격 디버깅 포트 |
 | `ENTRY_MCP_HOME` | `문서\EntryMCP` | 작업 폴더 |
-| `ENTRY_ASAR` | 엔트리 폴더의 `resources\app.asar` | 내장 리소스 DB 위치 |
+| `ENTRY_ASAR` | Windows: 엔트리 폴더의 `resources\app.asar`, macOS: `Entry.app/Contents/Resources/app.asar` | 내장 리소스 DB 위치 |
 
 예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y github:l2l2l4/entry-offline-mcp`
 
