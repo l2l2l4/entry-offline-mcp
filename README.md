@@ -1,5 +1,7 @@
 # entry-offline-mcp
 
+[![platform-test](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml) [![mac-e2e](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml)
+
 **Claude Code, Codex** 같은 AI 에이전트가 내 PC에 설치된 **엔트리 오프라인**(Entry, playentry.org)을 직접 조작해서
 **블록코딩 / 엔트리파이썬 작품**을 만들 수 있게 해 주는 MCP 서버입니다.
 
@@ -7,11 +9,11 @@
 블록 JSON 작성, 변수·리스트·신호·함수, 장면, 실행·키 입력·스크린샷으로 테스트, `.ent` 저장/열기까지 지원합니다.
 작업은 **실제 엔트리 창에서 실시간으로** 보입니다.
 
-> An MCP server that lets AI agents (Claude, Codex, ...) build Entry (Korean block-coding platform) projects by driving the locally installed Entry offline app (Windows; macOS experimental).
+> An MCP server that lets AI agents (Claude, Codex, ...) build Entry (Korean block-coding platform) projects by driving the locally installed Entry offline app (Windows and macOS).
 
 ## 요구 사항
 - Windows 10/11 (실제 테스트 완료)
-- macOS (**시험 지원**: 실제 맥에서는 아직 테스트하지 못했습니다. 동작 여부를 이슈로 알려 주세요)
+- macOS: GitHub Actions의 실제 맥(Apple Silicon)에 엔트리 2.1.36을 설치해서 **MCP로 실행 → 작품 생성 → 스크립트 실행 → 스크린샷 → 저장 → 다시 열기**까지 자동 시험을 통과했습니다. 엔트리 맥용 설치 파일이 인텔(x86_64)용이라 Apple Silicon 맥에서는 **Rosetta**가 필요합니다. 사람이 직접 쓰는 실제 맥과 인텔 맥에서는 아직 시험하지 못했습니다.
 - 엔트리 오프라인 설치 (playentry.org → 다운로드) (테스트 버전: 2.1.36)
 - [Node.js](https://nodejs.org) **22 이상**
 

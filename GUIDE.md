@@ -16,7 +16,7 @@
 - 직접 그린 이미지(SVG/PNG)를 `images\`에 저장하고 `entry_add_object {source:"image", image_paths:[...]}`로 오브젝트로 쓸 수 있다. 여러 파일 = 모양 여러 개.
 
 ## 2. 기본 작업 흐름
-1. `entry_launch` → 연결. 엔트리를 사용자가 직접 켜 둔 상태면 디버깅 포트가 없어 연결이 안 되므로 재시작이 필요하다(§0 확인). 작품 복구 대화상자가 뜨면 사용자에게 물어보고 `recovery` 지정.
+1. `entry_launch` → 연결. (새로 설치한 엔트리를 처음 켜면 뜨는 "만들기 환경 선택(기본형/교과형)" 대화상자는 MCP가 **기본형**으로 진행하고 `notes`에 알려 준다. 사용자에게 말해 줄 것.) 엔트리를 사용자가 직접 켜 둔 상태면 디버깅 포트가 없어 연결이 안 되므로 재시작이 필요하다(§0 확인). 작품 복구 대화상자가 뜨면 사용자에게 물어보고 `recovery` 지정.
 2. `entry_project {action:"new", name, empty:true}` → 빈 작품 (empty 생략 시 기본 엔트리봇 포함)
 3. 에셋: `entry_search_assets` → (`entry_preview_assets`로 눈으로 확인) → `entry_add_object`
    - 배경은 `kind:"background"`로 검색해서 추가 (자동으로 맨 뒤 + 잠금)
