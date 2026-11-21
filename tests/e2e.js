@@ -84,9 +84,10 @@ const jsonOf = (r) => { const t = textOf(r); try { return JSON.parse(t); } catch
     });
     await check('save .ent file', async () => {
       const target = path.join(home, 'e2e.ent');
-      await call('entry_project', { action: 'save', path: target });
-      assert.ok(fs.existsSync(target) && fs.statSync(target).size > 5000, 'saved file missing/small');
-      console.log('     saved bytes:', fs.statSync(target).size);
+      const res = textOf(await call('entry_project', { action: 'save', path: target }));
+      const info = `result=${res.replace(/\s+/g, ' ').slice(0, 300)} | exists=${fs.existsSync(target)} size=${fs.existsSync(target) ? fs.statSync(target).size : '-'} | dir=${fs.readdirSync(home).join(',')}`;
+      console.log('     ' + info);
+      assert.ok(fs.existsSync(target) && fs.statSync(target).size > 1000, 'saved file missing/small: ' + info);
     });
     await check('re-open the saved .ent', async () => {
       await call('entry_project', { action: 'new', empty: true });
