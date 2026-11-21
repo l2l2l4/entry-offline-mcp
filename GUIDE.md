@@ -16,8 +16,16 @@
 - 직접 그린 이미지(SVG/PNG)를 `images\`에 저장하고 `entry_add_object {source:"image", image_paths:[...]}`로 오브젝트로 쓸 수 있다. 여러 파일 = 모양 여러 개.
 
 ## 2. 기본 작업 흐름
+**먼저 확인: 새로 만드는 일인가, 이미 있는 작품을 고치는 일인가?** 고치는 일이면 아래 1~7번의 `entry_project new`부터 다시 하지 말고 이렇게 한다.
+- 열려 있는 작품이 대상이면 그대로 두고, 저장된 파일이면 `entry_project {action:"open", path}`로 연다. `new`는 현재 작품을 버린다(저장 안 하면 사라짐).
+- **바뀐 오브젝트만 고친다.** 위치·크기·레이어·현재 모양은 `entry_update_object`, 코드는 `entry_set_script`(그 오브젝트만 교체, 이어 붙이려면 `mode:"append"`), 모양·소리는 `entry_object_assets`, 변수·리스트는 `entry_data`.
+- 모양 이미지를 바꿀 때: 새 모양을 `add_picture`로 먼저 추가 → `entry_update_object`의 `picture`로 새 모양 선택 → 옛 모양 `remove_picture`(마지막 한 개는 못 지우므로 순서가 중요).
+- 고친 뒤 `entry_run` + `entry_screenshot`으로 해당 부분만 확인하고 `entry_project save`.
+- 처음부터 다시 만들어도 되는 경우: 오브젝트 구성 자체를 크게 바꿀 때, 또는 사용자가 새로 만들자고 했을 때. 그때도 다시 만들기 전에 현재 작품을 먼저 저장해 둔다.
+- 오브젝트가 아주 많거나 이미지가 큰 작품은 엔트리 창이 꺼질 수 있다. 중간중간 저장하고, 대량 작업은 나눠서 한다.
+
 1. `entry_launch` → 연결. (새로 설치한 엔트리를 처음 켜면 뜨는 "만들기 환경 선택(기본형/교과형)" 대화상자는 MCP가 **기본형**으로 진행하고 `notes`에 알려 준다. 사용자에게 말해 줄 것.) 엔트리를 사용자가 직접 켜 둔 상태면 디버깅 포트가 없어 연결이 안 되므로 재시작이 필요하다(§0 확인). 작품 복구 대화상자가 뜨면 사용자에게 물어보고 `recovery` 지정.
-2. `entry_project {action:"new", name, empty:true}` → 빈 작품 (empty 생략 시 기본 엔트리봇 포함)
+2. (새 작품일 때만) `entry_project {action:"new", name, empty:true}` → 빈 작품 (empty 생략 시 기본 엔트리봇 포함). 이미 만든 작품을 고치는 중이면 이 단계를 건너뛴다(위 참고).
 3. 에셋: `entry_search_assets` → (`entry_preview_assets`로 눈으로 확인) → `entry_add_object`
    - 배경은 `kind:"background"`로 검색해서 추가 (자동으로 맨 뒤 + 잠금)
    - 글상자(`source:"textbox"`)로 제목/점수/안내문 UI 구성

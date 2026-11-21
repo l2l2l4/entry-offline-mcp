@@ -233,8 +233,10 @@ const server = new McpServer(
   {
     instructions:
       'Entry(엔트리) 오프라인 앱을 직접 조작해 블록코딩/엔트리파이썬 작품을 만드는 도구입니다. ' +
-      '처음에는 entry_guide를 읽고 entry_launch로 앱을 연결하세요. 일반적 흐름: entry_project(new) → entry_search_assets/entry_add_object로 오브젝트·배경 배치 → entry_data로 변수/리스트/신호 → ' +
+      '처음에는 entry_guide를 읽고 entry_launch로 앱을 연결하세요. 새 작품을 만들 때의 흐름: entry_project(new) → entry_search_assets/entry_add_object로 오브젝트·배경 배치 → entry_data로 변수/리스트/신호 → ' +
       'entry_set_script(python 또는 blocks)로 코드 작성 → entry_run + entry_screenshot/entry_runtime_state/entry_input으로 실제 실행해 검증 → entry_project(save). ' +
+      '이미 만든 작품을 고칠 때는 entry_project(new)로 처음부터 다시 만들지 마세요(현재 작품이 사라집니다). 열려 있는 작품을 그대로 두거나 entry_project(open)으로 연 뒤, ' +
+      '바뀐 오브젝트만 entry_update_object / entry_set_script / entry_object_assets / entry_data로 고치고 entry_project(save)하세요. ' +
       '블록 형식이 헷갈리면 entry_block_reference로 확인하세요.',
   }
 );
@@ -316,7 +318,7 @@ tool(
   'entry_project',
   [
     '작품 단위 작업.',
-    "action='new': 새 작품(기본 엔트리봇 포함, empty=true면 오브젝트 모두 제거). 현재 작품은 저장하지 않으면 사라짐.",
+    "action='new': 새 작품(기본 엔트리봇 포함, empty=true면 오브젝트 모두 제거). 현재 작품은 저장하지 않으면 사라짐. 이미 만든 작품을 고치는 중이면 new를 쓰지 말고 open + 오브젝트 단위 수정(entry_update_object / entry_set_script / entry_object_assets)을 쓰세요.",
     "action='open': .ent 파일 열기(path; 상대경로는 작업폴더/projects 기준).",
     "action='save': .ent 파일로 저장. path 생략 시 작업폴더/projects/<작품이름>.ent. 상대경로는 작업폴더/projects 기준. name을 주면 작품 이름도 변경.",
     "action='rename': 작품 이름 변경(name).",
@@ -332,7 +334,21 @@ tool(
     json_path: z.string().optional(),
   },
   async ({ action, path: p, name, empty, json, json_path }) => {
-    if (action === 'new') return text(await bridge('newProject', name, !!empty));
+    if (action === 'new') {
+      // how much work is about to be thrown away? (objects that already have code)
+      let hadCode = 0;
+      try {
+        await ensureConnected();
+        hadCode = Number(await cdp.evaluate('Entry.container.getAllObjects().filter(function (o) { return o.script && o.script.getBlockList().length > 0; }).length')) || 0;
+      } catch (e) {}
+      const res = await bridge('newProject', name, !!empty);
+      if (hadCode > 0) {
+        return text(Object.assign({}, res, {
+          warning: `방금까지 열려 있던 작품(코드가 있는 오브젝트 ${hadCode}개)을 닫고 새 작품을 만들었습니다. 저장하지 않았다면 사라집니다. 이미 만든 작품을 고치는 중이었다면 new 대신 entry_project open으로 다시 열고, 바뀐 오브젝트만 entry_update_object / entry_set_script / entry_object_assets로 고치세요.`,
+        }));
+      }
+      return text(res);
+    }
     if (action === 'open') {
       if (!p) throw new Error('path가 필요합니다. (상대경로면 ' + DIRS.projects + ' 기준)');
       let abs = findInput(p, ['projects', 'home']);
