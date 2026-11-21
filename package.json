@@ -1,7 +1,7 @@
 {
   "name": "entry-offline-mcp",
   "version": "1.0.0",
-  "description": "MCP server that lets AI agents (Claude, Codex, ...) build Entry(엔트리) block-coding / Entry-Python projects by driving the locally installed Entry offline app",
+  "description": "MCP server that lets AI agents (Claude, Codex, ...) build Entry(엔트리) block-coding / Entry-Python projects by driving the locally installed Entry offline app (Windows; macOS experimental)",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -28,9 +28,6 @@
   "engines": {
     "node": ">=22"
   },
-  "os": [
-    "win32"
-  ],
   "scripts": {
     "start": "node src/index.js"
   },

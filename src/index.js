@@ -9,7 +9,7 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const { z } = require('zod');
 const { CdpClient, KEY_NAMES } = require('./cdp');
 const { AssetLibrary } = require('./assets');
-const { findEntryExe, isEntryProcessRunning, killEntry, startEntry, sleep } = require('./launcher');
+const { findEntryExe, findEntryAsar, isEntryProcessRunning, killEntry, startEntry, sleep } = require('./launcher');
 
 const PORT = Number(process.env.ENTRY_DEBUG_PORT || 9333);
 const cdp = new CdpClient(PORT);
@@ -17,7 +17,8 @@ let assets = null;
 function getAssets() {
   if (assets) return assets;
   const exe = findEntryExe();
-  const asarPath = process.env.ENTRY_ASAR || (exe ? path.join(path.dirname(exe), 'resources', 'app.asar') : 'C:\\entry\\resources\\app.asar');
+  const asarPath = findEntryAsar(exe);
+  if (!asarPath) throw new Error('엔트리 리소스(app.asar)를 찾지 못했습니다. 환경변수 ENTRY_ASAR로 경로를 지정하세요.');
   assets = new AssetLibrary(asarPath);
   assets.load();
   return assets;
@@ -259,7 +260,7 @@ tool(
         notes.push('기존 Entry 프로세스를 종료했습니다.');
       }
       const exe = findEntryExe();
-      if (!exe) throw new Error('Entry.exe를 찾지 못했습니다. 환경변수 ENTRY_PATH로 경로를 지정하세요.');
+      if (!exe) throw new Error('엔트리 오프라인 실행 파일을 찾지 못했습니다. 환경변수 ENTRY_PATH로 경로를 지정하세요 (Windows: C:\\entry\\Entry.exe, macOS: /Applications/Entry.app).');
       startEntry(exe, PORT, open_file);
       notes.push(`Entry 실행: ${exe} (port ${PORT})`);
     } else if (open_file) {
