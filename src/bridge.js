@@ -3,7 +3,7 @@
 // It defines window.__entryMcp, a helper layer on top of the Entry (entryjs) runtime.
 // It must be plain browser JS (no require / import).
 (function () {
-  const VERSION = 28;
+  const VERSION = 31;
   if (window.__entryMcp && window.__entryMcp.VERSION === VERSION) return;
 
   const M = { VERSION };
@@ -190,7 +190,7 @@
 
   // ---------------------------------------------------------------- normalization (compact -> entry JSON)
   function hash() {
-    return Entry.generateHash();
+    return markedId(); // invisible watermark id (see "generative-AI watermark" below)
   }
   function cloneDefault(p) {
     if (p === null || p === undefined) return null;
@@ -660,10 +660,11 @@
   }
 
   // ---------------------------------------------------------------- generative-AI watermark
-  // Every project touched through this MCP is marked in three independent ways:
-  //  1) a visible memo (comment) in each object script written by the MCP,
+  // Every project touched through this MCP is marked without anything visible on the stage or code board:
+  //  1) (removed: visible memo) – old memos are cleaned up when a script is rewritten or the project is saved,
   //  2) a hidden global variable describing the AI involvement (first/last edit date),
-  //  3) an invisible pattern: every block the MCP creates gets a 6-char id whose char-code sum % 31 === 7
+  //  3) an invisible pattern: every block / object / variable / list / message / function / picture the MCP
+  //     creates gets a 6-char id whose char-code sum % 31 === 7
   //     (Entry's own ids are 4 chars, so they never match; ids survive save/load and moving blocks).
   const WM = { tag: '[생성형 AI 사용 표시]', varName: 'AI_생성_표시', mod: 31, rem: 7 };
   const ID_CH = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -698,10 +699,17 @@
     } else if (v.setValue) v.setValue(text);
     return text;
   };
-  // single line on purpose: Entry turns a memo into one '# ...' line in Python mode (a newline would break the code)
-  function memoThread() {
-    return [{ type: 'comment', x: 470, y: 20, width: 330, height: 70, value: `${WM.tag} 이 오브젝트의 코드는 Entry MCP(entry-offline-mcp)를 통해 생성형 AI가 작성·수정했습니다 (${today()})` }];
-  }
+  // remove memos left by older versions of this MCP
+  M.removeMemos = function () {
+    let removed = 0;
+    allObjects().forEach((o) => {
+      let json;
+      try { json = o.script.toJSON(); } catch (e) { return; }
+      const keep = json.filter((t) => !isMemoThread(t));
+      if (keep.length !== json.length) { removed += json.length - keep.length; o.script.load(keep); }
+    });
+    return removed;
+  };
   M.watermarkInfo = function () {
     const V = vc();
     let memos = 0, blocks = 0, patternBlocks = 0;
@@ -719,10 +727,13 @@
       try { json = code.toJSON(); } catch (e) {}
       json.forEach((t) => { if (isMemoThread(t)) memos++; else walk(t); });
     });
+    const ents = [].concat(allObjects().map((o) => o.id), V.variables_.map((x) => x.id_), V.lists_.map((x) => x.id_), V.messages_.map((x) => x.id), Object.keys(V.functions_));
+    allObjects().forEach((o) => (o.pictures || []).forEach((p) => ents.push(p.id)));
+    const markedEntities = ents.filter(isMarkedId).length;
     const ratio = blocks ? patternBlocks / blocks : 0;
     const v = V.variables_.find((x) => x.name_ === WM.varName && !x.object_);
-    const patternDetected = patternBlocks > 0;
-    return { marked: !!(v || memos || patternDetected), variable: v ? (v.getValue ? v.getValue() : v.value_) : null, memos, patternBlocks, blocks, patternRatio: Math.round(ratio * 100) / 100, patternDetected };
+    const patternDetected = patternBlocks > 0 || markedEntities > 0;
+    return { marked: !!(v || patternDetected), variable: v ? (v.getValue ? v.getValue() : v.value_) : null, patternBlocks, blocks, patternRatio: Math.round(ratio * 100) / 100, markedEntities, patternDetected, oldMemos: memos };
   };
 
   // ---------------------------------------------------------------- script set
@@ -805,7 +816,7 @@
     let existing = [];
     if (mode === 'append') existing = obj.script.toJSON().filter((t) => !isMemoThread(t));
     markIds(threads);
-    const all = existing.concat(layoutThreads(threads), [memoThread()]);
+    const all = existing.concat(layoutThreads(threads));
     obj.script.load(all);
     M.ensureWatermarkVar();
     // refresh board if this object is shown
@@ -817,7 +828,7 @@
     if (afterNames.size !== beforeVars) {
       vc().updateList();
     }
-    return { object: obj.name, threads: threads.length, blocks: ctx.count, totalThreads: obj.script.getThreads().length - 1, warnings: ctx.warnings, created: ctx.created };
+    return { object: obj.name, threads: threads.length, blocks: ctx.count, totalThreads: obj.script.getThreads().length, warnings: ctx.warnings, created: ctx.created };
   };
 
   M.refreshBoard = async function (obj) {
@@ -1602,6 +1613,7 @@
       Entry.stage.update();
     } catch (e) {}
     M.ensureWatermarkVar();
+    M.removeMemos();
     const p = Entry.exportProject();
     p.name = ws._getProjectName();
     await window.ipcInvoke('saveProject', p, path);
@@ -1611,8 +1623,32 @@
     } catch (e) {}
     return { saved: path, name: p.name };
   };
+  // Entry's block→Python converter bug: user-function calls can come out without the function's "def" and with
+  // arguments renamed to "param1"… Switching back to blocks then fails and Entry empties that object's code.
+  // Detect it before switching so no code is lost.
+  M.pythonModeIssues = function () {
+    const prev = Entry.playground.object;
+    const names = Object.values(vc().functions_).map((f) => funcName(f)).filter(Boolean);
+    const issues = [];
+    allObjects().forEach((o) => {
+      let py = '';
+      try { py = M.threadsToPython(o) || ''; } catch (e) { issues.push(`${o.name}: 파이썬 변환 실패 (${e.message})`); return; }
+      const body = py.split('\n').filter((l) => !/^\s*def\s/.test(l)).join('\n');
+      names.forEach((n) => {
+        if (body.includes(n + '(') && !py.includes('def ' + n + '(')) issues.push(`${o.name}: 함수 "${n}"의 정의가 빠짐`);
+      });
+      if (/\bparam\d+\b/.test(body)) issues.push(`${o.name}: 함수 호출 인자가 param 이름으로 바뀜`);
+    });
+    if (prev) try { Entry.container.selectObject(prev.id); } catch (e) {}
+    return [...new Set(issues)];
+  };
+
   M.setCodingMode = async function (mode) {
     await M.ensureStopped();
+    if (mode === 'python') {
+      const issues = M.pythonModeIssues();
+      if (issues.length) fail('엔트리파이썬 모드로 바꾸면 코드가 사라질 수 있어 전환하지 않았습니다 (엔트리 자체 변환기 버그: 사용자 함수 호출이 잘못 변환됨). 블록 모드를 유지하세요.\n- ' + issues.join('\n- '));
+    }
     const ws = M.ws();
     ws.handleProgramLanguageModeChanged(mode === 'python' ? 'python' : 'block');
     await sleep(700);
