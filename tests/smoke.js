@@ -11,7 +11,9 @@ const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
 
 const results = [];
-const check = (name, fn) => Promise.resolve().then(fn).then(() => { results.push([name, true]); console.log('PASS', name); }, (e) => { results.push([name, false, e]); console.log('FAIL', name, '-', e.message); });
+// in GitHub Actions, failures are also written as annotations (visible on the public run page)
+const annotate = (msg) => { if (process.env.GITHUB_ACTIONS) console.log('::error::' + String(msg).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, '%0A').slice(0, 1500)); };
+const check = (name, fn) => Promise.resolve().then(fn).then(() => { results.push([name, true]); console.log('PASS', name); }, (e) => { results.push([name, false, e]); console.log('FAIL', name, '-', e.message); annotate(`FAIL ${name}: ${e.message}`); });
 
 (async () => {
   console.log(`platform=${process.platform} arch=${process.arch} node=${process.version}`);
@@ -56,7 +58,16 @@ const check = (name, fn) => Promise.resolve().then(fn).then(() => { results.push
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'entry-home-'));
     const transport = new StdioClientTransport({ command: cmd, args, env: Object.assign({}, process.env, { ENTRY_MCP_HOME: home, ENTRY_PATH: path.join(home, 'no-entry'), ENTRY_DEBUG_PORT: '59333' /* an unused port: never attach to a real Entry */ }), stderr: 'pipe' });
     client = new Client({ name: 'smoke', version: '1' });
-    await Promise.race([client.connect(transport), new Promise((_, rej) => setTimeout(() => rej(new Error('connect timeout 120s')), 120000))]);
+    let serverErr = '';
+    if (transport.stderr) transport.stderr.on('data', (d) => { serverErr += d; });
+    const t0 = Date.now();
+    try {
+      // first run of "npx github:..." has to clone and install: allow up to 4 minutes
+      await client.connect(transport, { timeout: 240000 });
+    } catch (e) {
+      throw new Error(`${e.message} after ${Math.round((Date.now() - t0) / 1000)}s; server stderr: ${serverErr.slice(-800) || '(none)'}`);
+    }
+    console.log(`     connected in ${Math.round((Date.now() - t0) / 1000)}s`);
   });
 
   if (client) {
