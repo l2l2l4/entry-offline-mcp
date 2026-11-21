@@ -24,14 +24,17 @@ jobs:
       - name: Smoke test (local checkout)
         run: node tests/smoke.js
 
+  # The exact install command from the README, on a fresh npm cache.
+  # Node 22 ships npm 10, whose "npx github:owner/repo" is broken ("GitFetcher requires an Arborist constructor"),
+  # so the README uses the codeload tarball URL instead (works on every npm version, needs no git).
   npx-install:
-    name: npx install from GitHub (${{ matrix.os }})
+    name: npx install from GitHub tarball (${{ matrix.os }})
     needs: smoke
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -39,9 +42,9 @@ jobs:
           node-version: 22
       - name: Install test client dependencies
         run: npm install --no-audit --no-fund
-      - name: Run the exact README command (macOS)
-        if: runner.os == 'macOS'
-        run: node tests/smoke.js npx -y github:${{ github.repository }}#${{ github.sha }}
-      - name: Run the exact README command (Windows)
+      - name: Run the README command (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: node tests/smoke.js npx -y https://codeload.github.com/${{ github.repository }}/tar.gz/${{ github.sha }}
+      - name: Run the README command (Windows)
         if: runner.os == 'Windows'
-        run: node tests/smoke.js cmd /c npx -y github:${{ github.repository }}#${{ github.sha }}
+        run: node tests/smoke.js cmd /c npx -y https://codeload.github.com/${{ github.repository }}/tar.gz/${{ github.sha }}
