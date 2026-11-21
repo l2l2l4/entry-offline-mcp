@@ -274,6 +274,13 @@ tool(
       notes.push('파일 열기: ' + open_file);
     }
     let st = await waitReady();
+    // first run on a fresh install: Entry asks which "환경" to use. The MCP needs the full-featured one (기본형).
+    for (let i = 0; i < 3 && !st.ready && st.modal && /환경을 선택/.test(st.modal.text || ''); i++) {
+      const done = await cdp.call('chooseEnvironment', '기본형');
+      notes.push(`첫 실행 환경 선택 대화상자: 기본형으로 진행${done ? '' : ' (버튼을 찾지 못함)'} — 사용자에게 알려 주세요`);
+      await sleep(3000);
+      st = await waitReady();
+    }
     if (!st.ready && st.modal) {
       if (recovery === 'ask') {
         return text({ connected: true, ready: false, modal: st.modal, message: "대화상자가 열려 있습니다. 사용자에게 물어본 뒤 recovery='restore' 또는 'discard'로 다시 호출하세요.", notes });

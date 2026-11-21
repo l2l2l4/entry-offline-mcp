@@ -3,7 +3,7 @@
 // It defines window.__entryMcp, a helper layer on top of the Entry (entryjs) runtime.
 // It must be plain browser JS (no require / import).
 (function () {
-  const VERSION = 31;
+  const VERSION = 32;
   if (window.__entryMcp && window.__entryMcp.VERSION === VERSION) return;
 
   const M = { VERSION };
@@ -87,6 +87,29 @@
     const b = [...document.querySelectorAll('button, a, span, div')].find((e) => e.children.length === 0 && (e.innerText || '').trim() === label && e.offsetParent !== null);
     if (!b) return false;
     b.click();
+    return true;
+  };
+  // First-run dialog "엔트리 만들기 환경을 선택해 주세요" (기본형 / 교과형 + 확인): pick one inside that dialog, then confirm.
+  M.chooseEnvironment = async function (label) {
+    const visibleLeaves = (root, text) => [...root.querySelectorAll('*')].filter((e) => e.children.length === 0 && (e.innerText || '').trim() === text && e.offsetParent !== null);
+    const oks = visibleLeaves(document, '확인');
+    if (!oks.length) return false;
+    let box = oks[oks.length - 1];
+    for (let i = 0; i < 10 && box.parentElement; i++) {
+      box = box.parentElement;
+      if ((box.innerText || '').includes('환경을 선택')) break;
+    }
+    if ((box.innerText || '').includes('환경을 선택')) {
+      // the option card may be the leaf itself or its parent: click the label, then its ancestors' own click targets
+      const opts = visibleLeaves(box, label);
+      if (opts.length) {
+        opts[0].click();
+        if (opts[0].parentElement) opts[0].parentElement.click();
+        await sleep(300);
+      }
+    }
+    const ok = visibleLeaves(box, '확인')[0] || oks[oks.length - 1];
+    ok.click();
     return true;
   };
 
