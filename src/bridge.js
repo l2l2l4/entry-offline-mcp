@@ -1078,7 +1078,11 @@
       if (p.color !== undefined) e.setColour(String(p.color));
       if (p.bgColor !== undefined) e.setBGColour(String(p.bgColor));
       if (p.lineBreak !== undefined) e.setLineBreak(!!p.lineBreak);
-      if (p.textAlign !== undefined) e.setTextAlign({ left: 0, center: 1, right: 2 }[p.textAlign] !== undefined ? { left: 0, center: 1, right: 2 }[p.textAlign] : Number(p.textAlign));
+      // Entry's own constants: TEXT_ALIGN_CENTER = 0, TEXT_ALIGN_LEFT = 1, TEXT_ALIGN_RIGHT = 2
+      if (p.textAlign !== undefined) {
+        const alignMap = { left: 1, center: 0, right: 2 };
+        e.setTextAlign(alignMap[p.textAlign] !== undefined ? alignMap[p.textAlign] : Number(p.textAlign));
+      }
     }
     if (p.layer !== undefined) M.setLayer(o, p.layer);
     try {
