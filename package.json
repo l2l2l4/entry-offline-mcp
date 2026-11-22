@@ -1,6 +1,6 @@
 {
   "name": "entry-offline-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server that lets AI agents (Claude, Codex, ...) build Entry(엔트리) block-coding / Entry-Python projects by driving the locally installed Entry offline app (Windows and macOS)",
   "keywords": [
     "mcp",
@@ -23,6 +23,7 @@
     "src",
     "GUIDE.md",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "engines": {
@@ -40,5 +41,8 @@
     "type": "git",
     "url": "git+https://github.com/l2l2l4/entry-offline-mcp.git"
   },
-  "homepage": "https://github.com/l2l2l4/entry-offline-mcp#readme"
+  "homepage": "https://github.com/l2l2l4/entry-offline-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/l2l2l4/entry-offline-mcp/issues"
+  }
 }

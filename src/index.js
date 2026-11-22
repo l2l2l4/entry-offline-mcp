@@ -229,7 +229,7 @@ const BlockArray = z.array(z.any());
 
 // ------------------------------------------------------------------ server
 const server = new McpServer(
-  { name: 'entry-offline', version: '1.0.0' },
+  { name: 'entry-offline', version: require('../package.json').version },
   {
     instructions:
       'Entry(엔트리) 오프라인 앱을 직접 조작해 블록코딩/엔트리파이썬 작품을 만드는 도구입니다. ' +

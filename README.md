@@ -1,6 +1,6 @@
 # entry-offline-mcp
 
-[![platform-test](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml) [![mac-e2e](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml)
+[![npm](https://img.shields.io/npm/v/entry-offline-mcp)](https://www.npmjs.com/package/entry-offline-mcp) [![platform-test](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/platform-test.yml) [![mac-e2e](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml/badge.svg)](https://github.com/l2l2l4/entry-offline-mcp/actions/workflows/mac-e2e.yml)
 
 **Claude Code, Codex** 같은 AI 에이전트가 내 PC에 설치된 **엔트리 오프라인**(Entry, playentry.org)을 직접 조작해서
 **블록코딩 / 엔트리파이썬 작품**을 만들 수 있게 해 주는 MCP 서버입니다.
@@ -10,6 +10,13 @@
 작업은 **실제 엔트리 창에서 실시간으로** 보입니다.
 
 > An MCP server that lets AI agents (Claude, Codex, ...) build Entry (Korean block-coding platform) projects by driving the locally installed Entry offline app (Windows and macOS).
+
+**Quick start** (needs Node.js 22+ and the Entry offline app installed):
+```bash
+claude mcp add -s user entry -- npx -y entry-offline-mcp          # macOS (terminal)
+claude mcp add -s user entry -- cmd /c npx -y entry-offline-mcp   # Windows (cmd)
+```
+Codex: add `[mcp_servers.entry]` with `command = 'npx'`, `args = ['-y', 'entry-offline-mcp']` to `config.toml` (Windows: `command = 'cmd'`, `args = ['/c', 'npx', '-y', 'entry-offline-mcp']`). Details below (Korean). Tested on Windows 10/11; macOS is verified in CI only; Codex setup is documented but not tested by the author.
 
 ## 요구 사항
 - Windows 10/11 (실제 테스트 완료)
@@ -21,28 +28,29 @@
 
 > 가장 쉬운 방법: Claude Code나 Codex에게 **"https://github.com/l2l2l4/entry-offline-mcp 이 MCP 설치해줘"** 라고 부탁하세요. 설치 후에는 새 대화(세션)를 열어야 엔트리 도구가 보입니다.
 
+npm에 올라가 있어서 패키지 이름(`entry-offline-mcp`)만으로 설치됩니다.
+
 ### Claude Code
 **macOS (터미널)**
 ```bash
-claude mcp add -s user entry -- npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
+claude mcp add -s user entry -- npx -y entry-offline-mcp
 ```
 엔트리가 `/Applications/Entry.app`이 아닌 곳에 있으면 `-e ENTRY_PATH="/경로/Entry.app"`을 붙이세요.
 
 **Windows 명령 프롬프트(cmd)**
 ```bat
-claude mcp add -s user entry -- cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
+claude mcp add -s user entry -- cmd /c npx -y entry-offline-mcp
 ```
 **Windows PowerShell** (`--`를 따옴표로 감싸야 합니다)
 ```powershell
-claude mcp add -s user entry '--' cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
+claude mcp add -s user entry '--' cmd /c npx -y entry-offline-mcp
 ```
 > Git Bash에서는 `/c`가 경로로 바뀌어 버리므로 cmd 또는 PowerShell에서 실행하세요.
 > 첫 실행은 다운로드 때문에 시간이 걸릴 수 있습니다. `claude mcp list`에서 `Connected`가 보이면 완료.
 
 제거: `claude mcp remove entry -s user`
 
-> 설치 주소가 `github:l2l2l4/entry-offline-mcp`가 아니라 압축 파일(tarball) 주소인 이유: Node 22와 함께 오는 npm 10에서는 `npx github:…` 방식이 `GitFetcher requires an Arborist constructor` 오류로 실패합니다(CI에서 확인). 압축 주소 방식은 npm 버전과 상관없이 되고 Git도 필요 없습니다.
-> 업데이트가 반영되지 않으면 `npm config get cache`가 알려 주는 폴더 안의 `_npx` 폴더를 지우고 다시 실행하세요.
+> 새 버전이 나왔는데 반영되지 않으면 `entry-offline-mcp@latest`로 지정해서 다시 등록하거나, `npm config get cache`가 알려 주는 폴더 안의 `_npx` 폴더를 지우고 다시 실행하세요.
 
 ### Codex (앱 / CLI)
 `config.toml`(Windows: `%USERPROFILE%\.codex\config.toml`, macOS: `~/.codex/config.toml`) 맨 끝에 추가하고 Codex를 다시 시작하세요.
@@ -50,29 +58,37 @@ claude mcp add -s user entry '--' cmd /c npx -y https://codeload.github.com/l2l2
 # Windows
 [mcp_servers.entry]
 command = 'cmd'
-args = ['/c', 'npx', '-y', 'https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main']
+args = ['/c', 'npx', '-y', 'entry-offline-mcp']
 startup_timeout_sec = 120
 ```
 ```toml
 # macOS
 [mcp_servers.entry]
 command = 'npx'
-args = ['-y', 'https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main']
+args = ['-y', 'entry-offline-mcp']
 startup_timeout_sec = 120
 ```
+> Codex 설정법은 안내만 드리고 직접 시험해 보지는 못했습니다. 안 되면 이슈로 알려 주세요.
 
 ### Claude Desktop 등 다른 MCP 클라이언트
-(macOS는 `"command": "npx"`, `"args": ["-y", "https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main"]`)
+(macOS는 `"command": "npx"`, `"args": ["-y", "entry-offline-mcp"]`)
 ```json
 {
   "mcpServers": {
     "entry": {
       "command": "cmd",
-      "args": ["/c", "npx", "-y", "https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main"]
+      "args": ["/c", "npx", "-y", "entry-offline-mcp"]
     }
   }
 }
 ```
+
+### npm을 쓰지 않고 GitHub 주소로 설치
+같은 명령에서 `entry-offline-mcp` 자리에 압축 파일(tarball) 주소를 쓰면 GitHub의 최신 `main`을 받습니다.
+```bash
+claude mcp add -s user entry -- npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main
+```
+> `npx github:l2l2l4/entry-offline-mcp` 형태가 아니라 압축 주소인 이유: Node 22와 함께 오는 npm 10에서는 `npx github:…` 방식이 `GitFetcher requires an Arborist constructor` 오류로 실패합니다(CI에서 확인). 압축 주소 방식은 npm 버전과 상관없이 되고 Git도 필요 없습니다.
 
 ### 직접 받아서 쓰기
 ```bat
@@ -115,7 +131,7 @@ Codex는 `config.toml`에 `command = 'node'`, `args = ['<받은 폴더>\src\inde
 | `ENTRY_MCP_HOME` | `문서\EntryMCP` | 작업 폴더 |
 | `ENTRY_ASAR` | Windows: 엔트리 폴더의 `resources\app.asar`, macOS: `Entry.app/Contents/Resources/app.asar` | 내장 리소스 DB 위치 |
 
-예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y https://codeload.github.com/l2l2l4/entry-offline-mcp/tar.gz/refs/heads/main`
+예: `claude mcp add -s user entry -e ENTRY_PATH="D:\Entry\Entry.exe" -- cmd /c npx -y entry-offline-mcp`
 
 ## 생성형 AI 사용 표시 (워터마크)
 이 MCP로 만들거나 고친 작품에는 생성형 AI가 사용되었다는 표시가 **눈에 띄지 않게** 자동으로 들어갑니다.
@@ -130,7 +146,7 @@ Codex는 `config.toml`에 `command = 'node'`, `args = ['<받은 폴더>\src\inde
 
 ## 동작 방식
 ```
-Claude ⇄ (MCP, stdio) ⇄ entry-offline-mcp ⇄ (Chrome DevTools Protocol) ⇄ 엔트리 오프라인(Electron)
+AI 에이전트(Claude Code · Codex 등) ⇄ (MCP, stdio) ⇄ entry-offline-mcp ⇄ (Chrome DevTools Protocol) ⇄ 엔트리 오프라인(Electron)
 ```
 - `src/index.js` MCP 도구 · `src/cdp.js` DevTools 연결 · `src/bridge.js` 엔트리 안에 주입되는 헬퍼 · `src/assets.js` 내장 리소스 검색 · `src/launcher.js` 실행
 
