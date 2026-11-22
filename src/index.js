@@ -234,6 +234,7 @@ const server = new McpServer(
     instructions:
       'Entry(엔트리) 오프라인 앱을 직접 조작해 블록코딩/엔트리파이썬 작품을 만드는 도구입니다. ' +
       '처음에는 entry_guide를 읽고 entry_launch로 앱을 연결하세요. 새 작품을 만들 때의 흐름: entry_project(new) → entry_search_assets/entry_add_object로 오브젝트·배경 배치 → entry_data로 변수/리스트/신호 → ' +
+      '(화면이 바뀌는 작품은 한 장면에 몰아넣지 말고 entry_scene add로 시작/게임/결과처럼 장면을 나누세요) → ' +
       'entry_set_script(python 또는 blocks)로 코드 작성 → entry_run + entry_screenshot/entry_runtime_state/entry_input으로 실제 실행해 검증 → entry_project(save). ' +
       '이미 만든 작품을 고칠 때는 entry_project(new)로 처음부터 다시 만들지 마세요(현재 작품이 사라집니다). 열려 있는 작품을 그대로 두거나 entry_project(open)으로 연 뒤, ' +
       '바뀐 오브젝트만 entry_update_object / entry_set_script / entry_object_assets / entry_data로 고치고 entry_project(save)하세요. ' +
